@@ -1,0 +1,4 @@
+name: ManHunt
+version: @version@
+main: io.ib67.manhunt.ManHunt
+api-version: 1.16
