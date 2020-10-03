@@ -143,7 +143,10 @@ public final class ManHunt extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        e.getPlayer().setGameMode(GameMode.ADVENTURE);
+        if (!gameStarted) {
+            e.getPlayer().setGameMode(GameMode.ADVENTURE);
+            e.getPlayer().getEquipment().clear();
+        }
         if (getServer().getOnlinePlayers().size() == maxPlayers) {
             inGamePlayers.add(e.getPlayer().getUniqueId());
             VoteGui voteGui = new VoteGui();
