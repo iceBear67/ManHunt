@@ -28,7 +28,7 @@ import java.util.*;
 public final class ManHunt extends JavaPlugin implements Listener {
     private UUID runner;
     private int maxPlayers;
-    private Set<UUID> inGamePlayers = new HashSet<>();
+    private Set<String> inGamePlayers = new HashSet<>();
     private boolean gotoEnd = false;
     private boolean gotoNether = false;
     private World mainWorld;
@@ -56,6 +56,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         // Plugin shutdown logic
+        saveConfig();
     }
 
     public void stopGame(GameResult result) {
@@ -115,6 +116,13 @@ public final class ManHunt extends JavaPlugin implements Listener {
                         gotoEnd = true;
                     }
                 }
+            }else{
+              Location lastloc = lastLoc.get(e.getPlayer().getWorld().getUID());
+              if(e.getPlayer().getLocation().distance(lastloc)<30){
+                  Bukkit.getServer().getPlayer(runner).spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("WARNING: HUNTERS AROUND!", net.md_5.bungee.api.ChatColor.RED));
+              }else{
+                Bukkit.getServer().getPlayer(runner).spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("safe..", net.md_5.bungee.api.ChatColor.AQUA));
+              }
             }
         }
     }
@@ -145,28 +153,26 @@ public final class ManHunt extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        if (!gameStarted) {
-            e.getPlayer().setGameMode(GameMode.ADVENTURE);
-            e.getPlayer().getEquipment().clear();
-        }
-        if (gameStarted && !inGamePlayers.contains(e.getPlayer().getUniqueId())) {
+        if (inGamePlayers.size()>=maxPlayers && !inGamePlayers.contains(e.getPlayer().getName()) && voteGui!=null) {
             e.getPlayer().setGameMode(GameMode.SPECTATOR);
             e.getPlayer().sendMessage("Welcome back! Match already started! Please stay as a SPECTATOR and keep quiet.");
             return;
         }
-        if (getServer().getOnlinePlayers().size() == maxPlayers && voteGui==null) {
-          if(!inGamePlayers.contains(e.getPlayer().getUniqueId())){
-            inGamePlayers.add(e.getPlayer().getUniqueId());
+        if (!gameStarted) {
+            e.getPlayer().setGameMode(GameMode.ADVENTURE);
+            e.getPlayer().getEquipment().clear();
+        }
+        if(!inGamePlayers.contains(e.getPlayer().getName())){
+            inGamePlayers.add(e.getPlayer().getName());
           }
+        if (getServer().getOnlinePlayers().size() == maxPlayers && voteGui==null) {
+            Bukkit.broadcastMessage("Start Vote!If you close gui in mistake,please reconnect to the server.");
             voteGui = new VoteGui();
             Bukkit.getOnlinePlayers().forEach(p -> p.openInventory(voteGui.getInventory()));
         } else if(getServer().getOnlinePlayers().size() < maxPlayers) {
-            if(!inGamePlayers.contains(e.getPlayer().getUniqueId())){
-            inGamePlayers.add(e.getPlayer().getUniqueId());
-          }
             Bukkit.broadcastMessage("Waiting for more player!! (" + getServer().getOnlinePlayers().size() + "/" + maxPlayers + ")");
         }
-        if(inGamePlayers.contains(e.getPlayer().getUniqueId()) && !voted.contains(e.getPlayer().getUniqueId()) && voteGui!=null){
+        if(inGamePlayers.contains(e.getPlayer().getName()) && !voted.contains(e.getPlayer().getUniqueId()) && voteGui!=null){
            e.getPlayer().openInventory(voteGui.getInventory());
         }
         
@@ -174,7 +180,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        //if (!gameStarted) inGamePlayers.remove(e.getPlayer().getUniqueId()); sometimes cause npe.
+        if (!gameStarted) inGamePlayers.remove(e.getPlayer().getName()); 
     }
 
     @EventHandler
@@ -240,9 +246,15 @@ public final class ManHunt extends JavaPlugin implements Listener {
             } else {
                 TextComponent message = new TextComponent("TRACKING: " + theRunner.getName());
                 message.setColor(net.md_5.bungee.api.ChatColor.AQUA);
-                TextComponent distance = new TextComponent(" DISTANCE: " + loc.distance(e.getPlayer().getLocation()));
+                if(loc.distance(e.getPlayer().getLocation())>200){
+                TextComponent distance = new TextComponent(" DISTANCE > 200 ");
                 distance.setColor(net.md_5.bungee.api.ChatColor.RED);
                 message.addExtra(distance);
+                if(loc.distance(e.getPlayer().getLocation())>500){
+                  message.addExtra(new TextComponent("("+loc.distance(e.getPlayer().getLocation())+")"));
+                }
+                }
+                
                 e.getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, message);
             }
             e.getPlayer().getEquipment().setItemInMainHand(refreshCompass(loc));
@@ -264,9 +276,10 @@ public final class ManHunt extends JavaPlugin implements Listener {
         mainWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
         Bukkit.broadcastMessage(ChatColor.RED + "GAME STARTED!! RUNNER: " + Bukkit.getPlayer(runner).getName());
         Bukkit.broadcastMessage(ChatColor.GREEN + "For the hunters, add a prefix " + ChatColor.BOLD + "#" + ChatColor.RESET + ChatColor.GREEN + " for team speaking.");
+        Bukkit.getPlayer(runner).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY,60*20,10));
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             if (!onlinePlayer.getUniqueId().equals(runner)) {
-                onlinePlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, getConfig().getInt("hunterWaitTime") * 20, 4));
+                onlinePlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, getConfig().getInt("hunterWaitTime") * 20, 10));
                 onlinePlayer.getInventory().addItem(new ItemStack(Material.COMPASS));
             }
         }
