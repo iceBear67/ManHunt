@@ -27,7 +27,7 @@ import java.util.*;
 
 public final class ManHunt extends JavaPlugin implements Listener {
     private UUID runner;
-    private int maxPlayers = getConfig().getInt("players");
+    private int maxPlayers;
     private List<UUID> inGamePlayers = new ArrayList<>();
     private boolean gotoEnd = false;
     private boolean gotoNether = false;
@@ -47,6 +47,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
         mainWorld.setTime(100);
         mainWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
         getServer().getPluginManager().registerEvents(this, this);
+        maxPlayers = getConfig().getInt("players");
         getLogger().info("World init completed.");
     }
 
