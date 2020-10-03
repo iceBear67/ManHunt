@@ -114,6 +114,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
                     }
                 }
                 if (e.getFrom().getWorld() != e.getTo().getWorld()) {
+                    Bukkit.broadcastMessage("[*] Runner left world:" + e.getFrom().getWorld().getName() + " for world:" + e.getTo().getWorld().getName() + ".");
                 }
             }
         }
