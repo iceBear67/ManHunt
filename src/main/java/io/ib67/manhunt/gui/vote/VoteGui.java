@@ -37,7 +37,7 @@ public class VoteGui implements InventoryHolder {
     }
 
     public UUID getRunner() {
-        return votes.entrySet().stream().reduce((a, b) -> a.getValue() > b.getValue() ? a : b).getKey();
+        return votes.entrySet().stream().reduce((a, b) -> a.getValue() > b.getValue() ? a : b).orElseThrow(NullPointerException::new).getKey();
         /*AtomicInteger max = new AtomicInteger();
         AtomicReference<UUID> key = new AtomicReference<>();
         votes.forEach((k, v) -> {
