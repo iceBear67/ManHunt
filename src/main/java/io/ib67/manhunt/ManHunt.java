@@ -1,6 +1,7 @@
 package io.ib67.manhunt;
 
 import io.ib67.manhunt.gui.vote.VoteGui;
+import io.ib67.manhunt.listener.*;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
@@ -25,18 +26,19 @@ import org.bukkit.potion.PotionEffectType;
 
 import java.util.*;
 
-public final class ManHunt extends JavaPlugin implements Listener {
-    private UUID runner;
-    private int maxPlayers;
-    private Set<String> inGamePlayers = new HashSet<>();
-    private boolean gotoEnd = false;
-    private boolean gotoNether = false;
-    private World mainWorld;
-    private boolean gameStarted = false;
-    private Map<UUID, Location> lastLoc = new HashMap<>();
+public final class ManHunt extends JavaPlugin {
+    public UUID runner;
+    public int maxPlayers;
+    public Set<String> inGamePlayers = new HashSet<>();
+    public boolean gotoEnd = false;
+    public boolean gotoNether = false;
+    public World mainWorld;
+    public boolean gameStarted = false;
+    public Map<UUID, Location> lastLoc = new HashMap<>();
 
-    private List<UUID> voted=new ArrayList<>();
-    private VoteGui voteGui;
+    public List<UUID> voted = new ArrayList<>();
+    public VoteGui voteGui;
+    public boolean autoCompass = false;
 
     @Override
     public void onEnable() {
@@ -47,16 +49,53 @@ public final class ManHunt extends JavaPlugin implements Listener {
         mainWorld.setDifficulty(Difficulty.PEACEFUL);
         mainWorld.setTime(100);
         mainWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
-        getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(new Chat(), this);
+        getServer().getPluginManager().registerEvents(new CraftItem(), this);
+        getServer().getPluginManager().registerEvents(new Damage(), this);
+        getServer().getPluginManager().registerEvents(new Death(), this);
+        getServer().getPluginManager().registerEvents(new Interact(), this);
+        getServer().getPluginManager().registerEvents(new InvClick(), this);
+        getServer().getPluginManager().registerEvents(new Join(), this);
+        getServer().getPluginManager().registerEvents(new Move(), this);
+        getServer().getPluginManager().registerEvents(new Quit(), this);
+        getServer().getPluginManager().registerEvents(new Respawn(), this);
         maxPlayers = getConfig().getInt("players");
         getLogger().info("World init completed.");
-       
+
     }
 
     @Override
     public void onDisable() {
         // Plugin shutdown logic
         saveConfig();
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("You're not a player.");
+            return true;
+        }
+        Player player = (Player) sender;
+        if (label.equalsIgnoreCase("vote")) {
+            if (!voted.contains(player.getUniqueId()) && voteGui != null) {
+                player.openInventory(voteGui.getInventory());
+            } else {
+                player.sendMessage("Vote haven't started or you've voted yet!");
+            }
+        } else if (label.equalsIgnoreCase("hunt")) {
+            if (args.length != 1) {
+                return false;
+            }
+            Player target = Bukkit.getPlayer(UUID.fromString(args[0]));
+            if (target == null) {
+                sender.sendMessage("Failed to find player.");
+                return true;
+            }
+            runner = target.getUniqueId();
+            Bukkit.broadcastMessage("[*] Runner has been set to " + target.getName());
+        }
+        return true;
     }
 
     public void stopGame(GameResult result) {
@@ -75,10 +114,8 @@ public final class ManHunt extends JavaPlugin implements Listener {
             onlinePlayer.setBedSpawnLocation(mainWorld.getSpawnLocation());
             onlinePlayer.teleport(mainWorld.getSpawnLocation());
         }
-        Bukkit.broadcastMessage("Server is going to restart in 5s for next game.");
-        Bukkit.getScheduler().runTaskLater(this, () -> {
-            getServer().shutdown();
-        }, 5 * 20L);
+        Bukkit.broadcastMessage("Server is going to restart in 60s for next game.");
+        Bukkit.getScheduler().runTaskLater(this, () -> getServer().shutdown(), 60 * 20L);
     }
 
     public Location genRandomSpawnLoc() {
@@ -88,55 +125,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
         return loc;
     }
 
-    @EventHandler
-    public void onDamage(EntityDamageByEntityEvent e) {
-        if (!gameStarted && e.getEntity().getType() == EntityType.PLAYER) {
-            e.setCancelled(true);
-            return;
-        }
-    }
 
-    @EventHandler
-    public void onMove(PlayerMoveEvent e) {
-        if (!gameStarted) {
-            if (e.getTo().distance(mainWorld.getSpawnLocation()) > 30) {
-                e.getPlayer().teleport(mainWorld.getSpawnLocation());
-            }
-        } else {
-            if (e.getPlayer().getUniqueId().equals(runner)) {
-                lastLoc.put(e.getPlayer().getLocation().getWorld().getUID(), e.getPlayer().getLocation());
-                if (e.getTo().getWorld().getEnvironment() == World.Environment.NETHER) {
-                    if (!gotoNether) {
-                        Bukkit.broadcastMessage("[*] Runner arrived nether.");
-                        gotoNether = true;
-                    }
-                } else if (e.getTo().getWorld().getEnvironment() == World.Environment.THE_END) {
-                    if (!gotoEnd) {
-                        Bukkit.broadcastMessage("[*] Runner arrived END");
-                        gotoEnd = true;
-                    }
-                }
-            }else{
-              Location lastloc = lastLoc.get(e.getPlayer().getWorld().getUID());
-              if(e.getPlayer().getLocation().distance(lastloc)<30){
-                  Bukkit.getServer().getPlayer(runner).spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("WARNING: HUNTERS AROUND!", net.md_5.bungee.api.ChatColor.RED));
-              }else{
-                Bukkit.getServer().getPlayer(runner).spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("safe..", net.md_5.bungee.api.ChatColor.AQUA));
-              }
-            }
-        }
-    }
-
-    @EventHandler
-    public void onDeath(EntityDeathEvent e) {
-        if (e.getEntity().getType() == EntityType.PLAYER) {
-            if (e.getEntity().getUniqueId().equals(runner)) {
-                stopGame(GameResult.HUNTER_WIN);
-            }
-        } else if (e.getEntity().getType() == EntityType.ENDER_DRAGON) {
-            stopGame(GameResult.RUNNER_WIN);
-        }
-    }
 
     public ItemStack refreshCompass(Location loc) {
         NBTUtil.NBTValue x = new NBTUtil.NBTValue().set(loc.getBlockX());
@@ -151,123 +140,8 @@ public final class ManHunt extends JavaPlugin implements Listener {
         return modified;
     }
 
-    @EventHandler
-    public void onJoin(PlayerJoinEvent e) {
-        if (inGamePlayers.size()>=maxPlayers && !inGamePlayers.contains(e.getPlayer().getName()) && voteGui!=null) {
-            e.getPlayer().setGameMode(GameMode.SPECTATOR);
-            e.getPlayer().sendMessage("Welcome back! Match already started! Please stay as a SPECTATOR and keep quiet.");
-            return;
-        }
-        if (!gameStarted) {
-            e.getPlayer().setGameMode(GameMode.ADVENTURE);
-            e.getPlayer().getEquipment().clear();
-        }
-        if(!inGamePlayers.contains(e.getPlayer().getName())){
-            inGamePlayers.add(e.getPlayer().getName());
-          }
-        if (getServer().getOnlinePlayers().size() == maxPlayers && voteGui==null) {
-            Bukkit.broadcastMessage("Start Vote!If you close gui in mistake,please reconnect to the server.");
-            voteGui = new VoteGui();
-            Bukkit.getOnlinePlayers().forEach(p -> p.openInventory(voteGui.getInventory()));
-        } else if(getServer().getOnlinePlayers().size() < maxPlayers) {
-            Bukkit.broadcastMessage("Waiting for more player!! (" + getServer().getOnlinePlayers().size() + "/" + maxPlayers + ")");
-        }
-        if(inGamePlayers.contains(e.getPlayer().getName()) && !voted.contains(e.getPlayer().getUniqueId()) && voteGui!=null){
-           e.getPlayer().openInventory(voteGui.getInventory());
-        }
-        
-    }
-
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        if (!gameStarted) inGamePlayers.remove(e.getPlayer().getName()); 
-    }
-
-    @EventHandler
-    public void onChat(AsyncPlayerChatEvent e) {
-        if (e.getPlayer().getGameMode() == GameMode.SPECTATOR) {
-            e.setFormat(ChatColor.GRAY + "[ SPECTATOR ] %1$s: %2$s");
-            return;
-        }
-        if (gameStarted) {
-            if (runner.equals(e.getPlayer().getUniqueId())) {
-                e.setFormat(ChatColor.GREEN + "[ RUNNER ] %1$s:" + ChatColor.WHITE + " %2$s");
-            } else {
-                e.setFormat(ChatColor.RED + "[ HUNTER ] %1$s:" + ChatColor.WHITE + " %2$s");
-            }
-        } else {
-            e.setFormat(ChatColor.GRAY + "%1$s:" + ChatColor.WHITE + " %2$s");
-        }
-        if (e.getMessage().startsWith("#") && !e.getPlayer().getUniqueId().equals(runner)) {
-            e.setCancelled(true);
-            getServer().getOnlinePlayers()
-                    .stream()
-                    .filter(p -> !p.getUniqueId().equals(runner))
-                    .filter(p -> p.getGameMode() == GameMode.SURVIVAL)
-                    .forEach(s -> s.sendMessage("[ TEAM ] " + String.format(e.getFormat(), e.getPlayer().getName(), e.getMessage())));
-        }
-    }
-
-    @EventHandler
-    public void onClick(InventoryClickEvent e) {
-        if (e.getClickedInventory()==null || e.getClickedInventory().getHolder() == null) return;
-        if (e.getClickedInventory().getHolder() instanceof VoteGui) {
-            e.setResult(Event.Result.DENY);
-            e.setCancelled(true);
-            VoteGui voteGui = (VoteGui) e.getClickedInventory().getHolder();
-            if (e.getCurrentItem().getType() != Material.PLAYER_HEAD) {
-                e.setResult(Event.Result.DENY);
-                e.setCancelled(true);
-            } else {
-                voteGui.vote(Objects.requireNonNull(Bukkit.getPlayerExact(e.getCurrentItem().getItemMeta().getDisplayName())));
-                voted.add(e.getWhoClicked().getUniqueId());
-                Bukkit.broadcastMessage("Voting.. " + voted.size() + "/" + inGamePlayers.size());
-                if (voted.size() == inGamePlayers.size()) {
-                    startGame(voteGui.getRunner());
-                }
-                e.setResult(Event.Result.DENY);
-                e.setCancelled(true);
-                e.getWhoClicked().closeInventory();
-            }
-        }
-    }
-
-    @EventHandler
-    public void onInteract(PlayerInteractEvent e) {
-        if (e.getItem()!=null && e.getItem().getType() == Material.COMPASS && gameStarted) {
-            Player theRunner = Bukkit.getPlayer(runner);
-            Location loc = lastLoc.get(e.getPlayer().getWorld().getUID());
-            if (loc == null) {
-                e.getPlayer().sendMessage("Maybe Runner haven't arrived this world yet.");
-                return;
-            }
-            if (!theRunner.getLocation().getWorld().getName().equals(e.getPlayer().getLocation().getWorld().getName())) {
-                e.getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("WARNING: THE RUNNER ISN'T IN THE SAME WORLD!", net.md_5.bungee.api.ChatColor.RED));
-            } else {
-                TextComponent message = new TextComponent("TRACKING: " + theRunner.getName());
-                message.setColor(net.md_5.bungee.api.ChatColor.AQUA);
-                if(loc.distance(e.getPlayer().getLocation())>200){
-                TextComponent distance = new TextComponent(" DISTANCE > 200 ");
-                distance.setColor(net.md_5.bungee.api.ChatColor.RED);
-                message.addExtra(distance);
-                if(loc.distance(e.getPlayer().getLocation())>500){
-                  message.addExtra(new TextComponent("("+loc.distance(e.getPlayer().getLocation())+")"));
-                }
-                }
-                
-                e.getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, message);
-            }
-            e.getPlayer().getEquipment().setItemInMainHand(refreshCompass(loc));
-        }
-    }
-    @EventHandler
-    public void onRespawn(PlayerRespawnEvent e){
-      if(e.getPlayer().getGameMode()==GameMode.SURVIVAL && !e.getPlayer().getUniqueId().equals(runner)){
-          e.getPlayer().getEquipment().setItemInMainHand(new ItemStack(Material.COMPASS));
-      }
-    }
-    private void startGame(UUID runner) {
-        voteGui=null;
+    public void startGame(UUID runner) {
+        voteGui = null;
         gameStarted = true;
         this.runner = runner;
         getServer().getOnlinePlayers().forEach(e -> e.setGameMode(GameMode.SURVIVAL));
@@ -275,15 +149,21 @@ public final class ManHunt extends JavaPlugin implements Listener {
         mainWorld.setDifficulty(Difficulty.HARD);
         mainWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
         Bukkit.broadcastMessage(ChatColor.RED + "GAME STARTED!! RUNNER: " + Bukkit.getPlayer(runner).getName());
-        Bukkit.broadcastMessage(ChatColor.GREEN + "For the hunters, add a prefix " + ChatColor.BOLD + "#" + ChatColor.RESET + ChatColor.GREEN + " for team speaking.");
-        Bukkit.getPlayer(runner).addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY,60*20,10));
+        Bukkit.broadcastMessage(ChatColor.GREEN + "For the hunters, add a prefix " + ChatColor.WHITE + "#" + ChatColor.RESET + ChatColor.GREEN + " for team speaking.");
+        Player target = getServer().getPlayer(runner);
+        Location loc = target.getLocation().clone();
+        loc.setX(loc.getX() + new Random().nextInt(1000) + 500);
+        loc.setZ(loc.getZ() + new Random().nextInt(1000) + 500);
+        loc.getWorld().getHighestBlockAt(loc).setType(Material.GLASS);
+        loc.setY(loc.getWorld().getHighestBlockYAt(loc));
+        target.teleport(loc);
+        target.sendMessage("You've teleported to a place which is very far from hunters.(" + loc.distance(mainWorld.getSpawnLocation()) + "m)");
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             if (!onlinePlayer.getUniqueId().equals(runner)) {
                 onlinePlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, getConfig().getInt("hunterWaitTime") * 20, 10));
-                onlinePlayer.getInventory().addItem(new ItemStack(Material.COMPASS));
             }
         }
-        Bukkit.getPlayer(runner).sendTitle("Run!", "HUNTERS CAN'T MOVE FOR " + getConfig().getInt("hunterWaitTime") + " SECONDS", 20, 40, 20);
+        Bukkit.getPlayer(runner).sendTitle("Start your speedrun!", "AND HUNTERS CAN'T MOVE FOR " + getConfig().getInt("hunterWaitTime") + " SECONDS", 20, 40, 20);
 
     }
     private String envAsName(World.Environment env){
@@ -297,8 +177,5 @@ public final class ManHunt extends JavaPlugin implements Listener {
       }
       System.err.println("SOMETHING WRONG IN envAsName!! "+env);
       return "";
-    }
-    public UUID getRunner() {
-        return runner;
     }
 }
