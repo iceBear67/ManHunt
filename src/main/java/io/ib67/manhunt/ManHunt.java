@@ -171,7 +171,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
             e.setFormat(ChatColor.GRAY + "[ SPECTATOR ] %1$s: %2$s");
             return;
         }
-        if (getConfig().getBoolean("gameStarted")) {
+        if (gameStarted) {
             if (runner.equals(e.getPlayer().getUniqueId())) {
                 e.setFormat(ChatColor.GREEN + "[ RUNNER ] %1$s:" + ChatColor.WHITE + " %2$s");
             } else {
