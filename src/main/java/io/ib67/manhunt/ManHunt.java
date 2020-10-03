@@ -28,14 +28,15 @@ import java.util.*;
 public final class ManHunt extends JavaPlugin implements Listener {
     private UUID runner;
     private int maxPlayers;
-    private List<UUID> inGamePlayers = new ArrayList<>();
+    private Set<UUID> inGamePlayers = new HashSet<>();
     private boolean gotoEnd = false;
     private boolean gotoNether = false;
     private World mainWorld;
     private boolean gameStarted = false;
     private Map<UUID, Location> lastLoc = new HashMap<>();
 
-    private int votedPlayers = 0;
+    private List<UUID> voted=new ArrayList<>();
+    private VoteGui voteGui;
 
     @Override
     public void onEnable() {
@@ -49,6 +50,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
         maxPlayers = getConfig().getInt("players");
         getLogger().info("World init completed.");
+       
     }
 
     @Override
@@ -132,9 +134,9 @@ public final class ManHunt extends JavaPlugin implements Listener {
         NBTUtil.NBTValue x = new NBTUtil.NBTValue().set(loc.getBlockX());
         NBTUtil.NBTValue y = new NBTUtil.NBTValue().set(loc.getBlockY());
         NBTUtil.NBTValue z = new NBTUtil.NBTValue().set(loc.getBlockZ());
-        Object compound = NBTUtil.setTagValue(NBTUtil.newNBTTagCompound(), "x", x);
-        compound = NBTUtil.setTagValue(compound, "y", y);
-        compound = NBTUtil.setTagValue(compound, "z", z);
+        Object compound = NBTUtil.setTagValue(NBTUtil.newNBTTagCompound(), "X", x);
+        compound = NBTUtil.setTagValue(compound, "Y", y);
+        compound = NBTUtil.setTagValue(compound, "Z", z);
         ItemStack modified = NBTUtil.setTagValue(new ItemStack(Material.COMPASS), "LodestoneTracked", new NBTUtil.NBTValue().set(false));
         modified = NBTUtil.setTagValue(modified, "LodestonePos", new NBTUtil.NBTValue(compound));
         modified = NBTUtil.setTagValue(modified,"LodestoneDimension",new NBTUtil.NBTValue().set(envAsName(loc.getWorld().getEnvironment())));
@@ -147,23 +149,32 @@ public final class ManHunt extends JavaPlugin implements Listener {
             e.getPlayer().setGameMode(GameMode.ADVENTURE);
             e.getPlayer().getEquipment().clear();
         }
-        if (getServer().getOnlinePlayers().size() == maxPlayers) {
-            inGamePlayers.add(e.getPlayer().getUniqueId());
-            VoteGui voteGui = new VoteGui();
-            Bukkit.getOnlinePlayers().forEach(p -> p.openInventory(voteGui.getInventory()));
-        } else {
-            inGamePlayers.add(e.getPlayer().getUniqueId());
-            Bukkit.broadcastMessage("Waiting for more player!! (" + getServer().getOnlinePlayers().size() + "/" + maxPlayers + ")");
-        }
         if (gameStarted && !inGamePlayers.contains(e.getPlayer().getUniqueId())) {
             e.getPlayer().setGameMode(GameMode.SPECTATOR);
             e.getPlayer().sendMessage("Welcome back! Match already started! Please stay as a SPECTATOR and keep quiet.");
+            return;
         }
+        if (getServer().getOnlinePlayers().size() == maxPlayers && voteGui==null) {
+          if(!inGamePlayers.contains(e.getPlayer().getUniqueId())){
+            inGamePlayers.add(e.getPlayer().getUniqueId());
+          }
+            voteGui = new VoteGui();
+            Bukkit.getOnlinePlayers().forEach(p -> p.openInventory(voteGui.getInventory()));
+        } else if(getServer().getOnlinePlayers().size() < maxPlayers) {
+            if(!inGamePlayers.contains(e.getPlayer().getUniqueId())){
+            inGamePlayers.add(e.getPlayer().getUniqueId());
+          }
+            Bukkit.broadcastMessage("Waiting for more player!! (" + getServer().getOnlinePlayers().size() + "/" + maxPlayers + ")");
+        }
+        if(inGamePlayers.contains(e.getPlayer().getUniqueId()) && !voted.contains(e.getPlayer().getUniqueId()) && voteGui!=null){
+           e.getPlayer().openInventory(voteGui.getInventory());
+        }
+        
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        if (!gameStarted) inGamePlayers.remove(e.getPlayer().getUniqueId());
+        //if (!gameStarted) inGamePlayers.remove(e.getPlayer().getUniqueId()); sometimes cause npe.
     }
 
     @EventHandler
@@ -193,7 +204,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent e) {
-        if (e.getClickedInventory().getHolder() == null) return;
+        if (e.getClickedInventory()==null || e.getClickedInventory().getHolder() == null) return;
         if (e.getClickedInventory().getHolder() instanceof VoteGui) {
             e.setResult(Event.Result.DENY);
             e.setCancelled(true);
@@ -203,9 +214,9 @@ public final class ManHunt extends JavaPlugin implements Listener {
                 e.setCancelled(true);
             } else {
                 voteGui.vote(Objects.requireNonNull(Bukkit.getPlayerExact(e.getCurrentItem().getItemMeta().getDisplayName())));
-                votedPlayers++;
-                Bukkit.broadcastMessage("Voting.. " + votedPlayers + "/" + inGamePlayers.size());
-                if (votedPlayers == inGamePlayers.size()) {
+                voted.add(e.getWhoClicked().getUniqueId());
+                Bukkit.broadcastMessage("Voting.. " + voted.size() + "/" + inGamePlayers.size());
+                if (voted.size() == inGamePlayers.size()) {
                     startGame(voteGui.getRunner());
                 }
                 e.setResult(Event.Result.DENY);
@@ -217,7 +228,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
-        if (e.getAction() == Action.RIGHT_CLICK_AIR && e.getItem().getType() == Material.COMPASS && gameStarted) {
+        if (e.getItem()!=null && e.getItem().getType() == Material.COMPASS && gameStarted) {
             Player theRunner = Bukkit.getPlayer(runner);
             Location loc = lastLoc.get(e.getPlayer().getWorld().getUID());
             if (loc == null) {
@@ -237,8 +248,14 @@ public final class ManHunt extends JavaPlugin implements Listener {
             e.getPlayer().getEquipment().setItemInMainHand(refreshCompass(loc));
         }
     }
-
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent e){
+      if(e.getPlayer().getGameMode()==GameMode.SURVIVAL && !e.getPlayer().getUniqueId().equals(runner)){
+          e.getPlayer().getEquipment().setItemInMainHand(new ItemStack(Material.COMPASS));
+      }
+    }
     private void startGame(UUID runner) {
+        voteGui=null;
         gameStarted = true;
         this.runner = runner;
         getServer().getOnlinePlayers().forEach(e -> e.setGameMode(GameMode.SURVIVAL));
