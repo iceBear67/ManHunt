@@ -137,6 +137,7 @@ public final class ManHunt extends JavaPlugin implements Listener {
         compound = NBTUtil.setTagValue(compound, "z", z);
         ItemStack modified = NBTUtil.setTagValue(new ItemStack(Material.COMPASS), "LodestoneTracked", new NBTUtil.NBTValue().set(false));
         modified = NBTUtil.setTagValue(modified, "LodestonePos", new NBTUtil.NBTValue(compound));
+        modified = NBTUtil.setTagValue(modified,"LodestoneDimension",new NBTUtil.NBTValue().set(envAsName(loc.getWorld().getEnvironment())));
         return modified;
     }
 
@@ -255,7 +256,18 @@ public final class ManHunt extends JavaPlugin implements Listener {
         Bukkit.getPlayer(runner).sendTitle("Run!", "HUNTERS CAN'T MOVE FOR " + getConfig().getInt("hunterWaitTime") + " SECONDS", 20, 40, 20);
 
     }
-
+    private String envAsName(World.Environment env){
+      switch(env){
+        case NORMAL:
+          return "minecraft:overworld";
+        case THE_END:
+          return "minecraft:the_end";
+        case NETHER:
+          return "minecraft:the_nether";
+      }
+      System.err.println("SOMETHING WRONG IN envAsName!! "+env);
+      return "";
+    }
     public UUID getRunner() {
         return runner;
     }
