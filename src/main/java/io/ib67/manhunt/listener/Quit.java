@@ -9,6 +9,6 @@ public class Quit extends Base implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        if (!getMh().gameStarted) getMh().inGamePlayers.remove(e.getPlayer().getName());
+        if (!getMh().gameStarted && getMh().voteGui==null) getMh().inGamePlayers.remove(e.getPlayer().getName());
     }
 }
