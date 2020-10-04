@@ -10,7 +10,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 public class Join extends Base implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        e.getPlayer().sendMessage(new String[]{
+        if (!getMh().gameStarted) {
+            e.getPlayer().setGameMode(GameMode.ADVENTURE);
+            e.getPlayer().getEquipment().clear();
+            e.getPlayer().sendMessage(new String[]{
                 "Hi There!This is ManHunt Minigame server.",
                 "Game Introduction:",
                 "In this game,3 hunters are designed to track and kill one runner.",
@@ -18,9 +21,6 @@ public class Join extends Base implements Listener {
                 "Every hunter have a compass to track runner,and runner can be also known for hunter around him.",
                 "But before getting compass,hunters should make a compass first."
         });
-        if (!getMh().gameStarted) {
-            e.getPlayer().setGameMode(GameMode.ADVENTURE);
-            e.getPlayer().getEquipment().clear();
         }
         if (getMh().inGamePlayers.size() >= getMh().maxPlayers && !getMh().inGamePlayers.contains(e.getPlayer().getName())) {
             e.getPlayer().setGameMode(GameMode.SPECTATOR);
@@ -30,8 +30,8 @@ public class Join extends Base implements Listener {
         if (!getMh().inGamePlayers.contains(e.getPlayer().getName()) && getMh().voteGui == null) {
             getMh().inGamePlayers.add(e.getPlayer().getName());
         }
-        if (Bukkit.getServer().getOnlinePlayers().size() == getMh().maxPlayers && getMh().voteGui == null) {
-            Bukkit.broadcastMessage("Start Vote!If you close gui in mistake,please reconnect to the server or use /voterun.");//todo VoteRun
+        if (Bukkit.getServer().getOnlinePlayers().size() == getMh().maxPlayers && getMh().voteGui == null && !gameStarted) {
+            Bukkit.broadcastMessage("Start Vote!If you close gui in mistake,please reconnect to the server or use /vote.");
             getMh().voteGui = new VoteGui();
             Bukkit.getOnlinePlayers().forEach(p -> p.openInventory(getMh().voteGui.getInventory()));
         } else if (Bukkit.getServer().getOnlinePlayers().size() < getMh().maxPlayers) {
