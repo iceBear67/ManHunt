@@ -152,12 +152,12 @@ public final class ManHunt extends JavaPlugin {
         Bukkit.broadcastMessage(ChatColor.GREEN + "For the hunters, add a prefix " + ChatColor.WHITE + "#" + ChatColor.RESET + ChatColor.GREEN + " for team speaking.");
         Player target = getServer().getPlayer(runner);
         Location loc = target.getLocation().clone();
-        loc.setX(loc.getX() + new Random().nextInt(1000) + 500);
-        loc.setZ(loc.getZ() + new Random().nextInt(1000) + 500);
+        loc.setX(loc.getX() + new Random().nextInt(300) + 200);
+        loc.setZ(loc.getZ() + new Random().nextInt(3000) + 200);
         loc.getWorld().getHighestBlockAt(loc).setType(Material.GLASS);
         loc.setY(loc.getWorld().getHighestBlockYAt(loc));
         target.teleport(loc);
-        target.sendMessage("You've teleported to a place which is very far from hunters.(" + loc.distance(mainWorld.getSpawnLocation()) + "m)");
+        target.sendMessage("You've teleported to a place which is far from hunters.(" + loc.distance(mainWorld.getSpawnLocation()) + "m)");
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             if (!onlinePlayer.getUniqueId().equals(runner)) {
                 onlinePlayer.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, getConfig().getInt("hunterWaitTime") * 20, 10));

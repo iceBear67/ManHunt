@@ -34,7 +34,7 @@ public class Join extends Base implements Listener {
             Bukkit.broadcastMessage("Start Vote!If you close gui in mistake,please reconnect to the server or use /vote.");
             getMh().voteGui = new VoteGui();
             Bukkit.getOnlinePlayers().forEach(p -> p.openInventory(getMh().voteGui.getInventory()));
-        } else if (Bukkit.getServer().getOnlinePlayers().size() < getMh().maxPlayers) {
+        } else if (getMh().inGamePlayers.size() < getMh().maxPlayers && !getMh().gameStarted) {
             Bukkit.broadcastMessage("Waiting for more player!! (" + Bukkit.getServer().getOnlinePlayers().size() + "/" + getMh().maxPlayers + ")");
         }
         if (getMh().inGamePlayers.contains(e.getPlayer().getName()) && !getMh().voted.contains(e.getPlayer().getUniqueId()) && getMh().voteGui != null) {

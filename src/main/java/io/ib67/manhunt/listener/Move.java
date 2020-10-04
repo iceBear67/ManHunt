@@ -51,7 +51,8 @@ public class Move extends Base implements Listener {
                     return;
                 }
                 double distance = e.getPlayer().getLocation().distance(runner.getLocation());
-                if (distance < 30 && !nearbyPlayers.contains(e.getPlayer().getName())) {
+                if (distance < 30) {
+                    if(!nearbyPlayers.contains(e.getPlayer().getName()))nearbyPlayers.add(e.getPlayer().getName());
                     TextComponent msg = new TextComponent(e.getPlayer().getName() + " is near you. (total " + nearbyPlayers.size() + " hunters,in 30m)");
                     msg.setColor(ChatColor.AQUA);
                     if (distance < 10) {
@@ -59,7 +60,6 @@ public class Move extends Base implements Listener {
                         msg.setColor(ChatColor.RED);
                     }
                     runner.spigot().sendMessage(ChatMessageType.ACTION_BAR, msg);
-                    nearbyPlayers.add(e.getPlayer().getName());
                 } else if (distance >= 30 && nearbyPlayers.contains(e.getPlayer().getName())) {
                     nearbyPlayers.remove(e.getPlayer().getName());
                     TextComponent msg = new TextComponent(e.getPlayer().getName() + " isn't near you now. (total " + nearbyPlayers.size() + " hunters,in 30m)");
