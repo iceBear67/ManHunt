@@ -16,6 +16,10 @@ public class Interact extends Base implements Listener {
     public void onInteract(PlayerInteractEvent e) {
         if (e.getItem() != null && e.getItem().getType() == Material.COMPASS && getMh().gameStarted) {
             Player theRunner = Bukkit.getPlayer(getMh().runner);
+            if(theRunner==null){
+              e.getPlayer().spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText("Runner offline!", net.md_5.bungee.api.ChatColor.RED));
+              return;
+            }
             Location loc = getMh().lastLoc.get(e.getPlayer().getWorld().getUID());
             if (loc == null) {
                 e.getPlayer().sendMessage("Maybe Runner haven't arrived this world yet.");
