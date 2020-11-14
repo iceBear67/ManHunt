@@ -1,4 +1,4 @@
-package io.ib67.manhunt;
+package io.ib67.manhunt.util;
 
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
@@ -143,7 +143,7 @@ public class NBTUtil {
             canEdit = true;
         }
 
-        NBTValue(Object base) {
+        public NBTValue(Object base) {
             canEdit = false;
             this.base = base;
         }

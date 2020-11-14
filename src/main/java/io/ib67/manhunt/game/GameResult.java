@@ -1,4 +1,5 @@
-package io.ib67.manhunt;
+package io.ib67.manhunt.game;
+
 
 public enum GameResult {
     RUNNER_WIN, HUNTER_WIN
