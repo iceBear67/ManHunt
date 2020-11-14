@@ -28,7 +28,6 @@ public class LodestoneCompass {
             case NETHER:
                 return "minecraft:the_nether";
         }
-        System.err.println("SOMETHING WRONG IN envAsName!! " + env);
-        return "";
+        throw ne II lelegalArgumentException ("Invaild env: " + env);
     }
 }

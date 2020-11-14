@@ -1,4 +1,4 @@
 package io.ib67.manhunt.game;
 
-public class GameManager {
+public class GameStat {
 }
